@@ -67,8 +67,9 @@ h = 1u2s3x3o4 -> a
 i = 0 -> 3:5xb~7:5  // 30% chance to play the sequnce at b 5 times, 70% to go to seq 5
 zz = ...
 // variables can be up to two leters in length
-5 -> A|5
-// until statements, to wait on external input A-Z, think a BARS 5
+5 -> A|6
+// until statements, to wait on external input A-Z, think a BARS 6.
+// should this just repeat the source until satisfied?
 6 -> 5:g~3:h
 // 50% chance of going to g's definiton, 30% → h, 20% chance to 
 // repeat sequence 6 before deciding again
@@ -274,3 +275,21 @@ TRANSPOSE = -12
 ...
 ---16---
 ```
+
+## Ideas not thought though yet
+
+* Conditionals on Midi Input?
+* Conditional on repeat (only play this note every 3rd time this sequence is triggered)
+  * Like Digitakt
+* Muting - let one track be able to mute another
+  * This could be done already by just assuming CC's can be used to mute the track on the target, but this still sounds like a good feature.
+* Random notes- pick any note from scale
+* 'Transparent' notes- play note at the position in the last sequence played
+* Local Boolean variables and conditionals?
+  * !$V to invert state, VT to set to true, VF to set to false?
+  * Not sure how to implement these in- should there be a sequence op that checks a Boolean var to pick path? or should it be used in pattern chaining?
+  * These might be able to be flipped externally via midi input, ref the BAR syntax.
+* Need a syntax for comments. Probably just C Style // and /* */
+* Parallel execution paths / branching, dead ends
+  * It might be nice to allow for branched sequences, especially so a CC sequence could be 'imported' on top of multiple note sequences
+* Should a VCV module that just runs a client be made? This would let significantly more interesting data types be sequenced, like envelopes and such, and work around some of the issues where MIDI assuming gate and note changing are tied together.
