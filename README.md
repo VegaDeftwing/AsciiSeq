@@ -25,10 +25,10 @@ h = 0 -> 3:5xb~7:5  // 30% chance to play the sequnce at b 5 times, 70% to go to
 zz = ...            // variables can be up to two leters in length
 // note, that when using a var in a var the go-to of the var will be overridden until the
 // calling var completes, so this will still trigger b 4 times before going to 2
-5 -> A|5			// until statements, to wait on external input A-Z, think a BARS 5
+5 -> A|5		// until statements, to wait on external input A-Z, think a BARS 5
 6 -> 5:g~2:6~3:h 	// 50% chance of going to g's pattern, 20% chance to repeat seq 6, 30% → h
 7 -> 2 -> 4 		//the redirect to sequence 3 from sequnce to 2 is overridden, to go to 4 instead
-8 -> 0r1 			//play sequence 1 in reverse, note the 0 because reverseing doesn't have any options
+8 -> 0r1 	//play sequence 1 in reverse, note the 0 because reverseing doesn't have any options
 ```
 
 ## Making A Sequence
@@ -98,7 +98,7 @@ zz = ...            // variables can be up to two leters in length
 // long, this is a forced gate hold for the sake of operators that are dependent on gate time, 
 // the length of the total gate is what the percentage is of, so 
 17 = c,e...{PB=0,1},f
-// will take 10% of the time of the 4 note gate, not of just one note. This allows for long   // glides
+// will take 10% of the time of the 4 note gate, not of just one note. This allows for long glides
 18 = ^(a,a,a,a),d,f,a,e
 // ^() can be used for ratchets
 19 = ^(a...)
@@ -155,8 +155,8 @@ LAZY_CMAJOR = minor
 // this lets noobs like me treat everything like it's major for writing it. This will throw a 
 // warning if you try to use a note off the major scale
 // combine with transpose to get different keys
-// options should be major (no change, but warn about non-major keys), minor, minor_mel, minor_harm,
-// penta, and blues. not sure what to do with those with more than 7 notes.
+// options should be major (no change, but warn about non-major keys), minor, minor_mel,
+// minor_harm, penta, and blues. not sure what to do with those with more than 7 notes.
 // might let the notes availble expand, so for blues it could be
 // a is a, b is a#, c is b, d is c, e is d, f is d#, g is e, then go into non-notes, so
 // h is f, i is f#, and j is g      
