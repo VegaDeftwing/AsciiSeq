@@ -24,6 +24,8 @@ This would just play 1 and 2 in a loop forever.
 ## Chaining Sequences
 Note, that any sequence entry point that is the `number ->`  must be unique, that is, each sequence destination can only be defined once.
 
+sequence '1' is always the entry point.
+
 Basic sequence chaining:
 ```c
 1 -> 2
@@ -99,7 +101,7 @@ avail notes are c,c#,d,d#,e,f,f#,g,g# and n where n is no note. notes can also b
 
 > **?** flat would be nice, but I think having syntax like eb is very confusing and I don't see a better symbol? maybe e♭ with unicode, but that's a bitch to type and fucks up the otherwise ascii format
 
-> **?** syntax for chords in scale?
+> **?** syntax for chords in scale? This would need to be dramatically simplified. It might be best done using variables like in the patterns, but I think this would require some 'intelligence' like Cm-1 for C minor first inversion? Idk. My music theory isn't good enough for some of this.
 
 > **?** syntax highlighting for notes that are out of scale?
 
@@ -278,18 +280,120 @@ TRANSPOSE = -12
 
 ## Ideas not thought though yet
 
+All of the points bellow make me think it might not be a bad idea to separate the actually output format from the sequencer, if MIDI is all that's available, a translation layer from what the sequencer supports to what MIDI supports could be made. This helps future proof for MIDI 2.0, using CV/Gate, OSC, etc.
+
+MIDI 2.0 looks like a PITA, but possibly the best option
+
+... But seriously, why do all of these formats suck so hard.
+
 * Conditionals on Midi Input?
+
 * Conditional on repeat (only play this note every 3rd time this sequence is triggered)
+  
   * Like Digitakt
+  
 * Muting - let one track be able to mute another
-  * This could be done already by just assuming CC's can be used to mute the track on the target, but this still sounds like a good feature.
+  
+  * This could be done already by just assuming CC's can be used to mute the track on the target, but this still sounds like a good feature to have a dedicated syntax.
+  
 * Random notes- pick any note from scale
+
 * 'Transparent' notes- play note at the position in the last sequence played
+
+  ![transparentNotes](transparentNotes.svg)
+
 * Local Boolean variables and conditionals?
   * !$V to invert state, VT to set to true, VF to set to false?
   * Not sure how to implement these in- should there be a sequence op that checks a Boolean var to pick path? or should it be used in pattern chaining?
   * These might be able to be flipped externally via midi input, ref the BAR syntax.
+  
 * Need a syntax for comments. Probably just C Style // and /* */
+
 * Parallel execution paths / branching, dead ends
-  * It might be nice to allow for branched sequences, especially so a CC sequence could be 'imported' on top of multiple note sequences
+  
+  * It might be nice to allow for branched sequences, especially so a CC sequence could be 'imported' on top of multiple note sequences, for transparent notes, and for gate sequence overrides
+  
+  * My god does this get confusing quickly. What happens if two sequences try to play the same note? What if they have different velocities? What if a CC value is changed in two places at once? Should there be a maximum depth of splitting?
+  
+  * There's already a issue that allows for recursion: For example `4 = {4};{5},c` uses polyphony but calls its self. This would probably just need to have a hard limit like `MAX_REC_DEPTH=n` set in the config file.
+  
+  * But with parallel execution paths say `4 -> 5&6` have a lot more potential to have shit hit the fan. It may work if the sytax is expanded to something like `4->5&6.3`, where the first argument is the sequence that's allowed to keep going from the root, while a branch off to sequence 6 would only be allowed to go 3 steps (or whatever follows the `.`)
+  
+    ```c
+    1 -> 2
+    2 -> 3
+    3 -> 4
+    4 -> 5&6.3
+    5 -> //whatever
+    // Going to anything defined so far (1-6) would cause a loop
+    // but this could just as easily go onto 7, then 8, etc
+    6 -> 1
+    // 6 goes back to 1, and 1->2 is defined above
+    ```
+  
+    
+  
+     ![SeqBranching](SeqBranching.svg)
+  
+    This would avoid the crazy recursion depth problem as everything would still have a max level, even in situations like
+  
+    ```c
+    1 -> 2
+    2 -> 3
+    3 -> 4&5.3
+    4 -> 3&5.3
+    5 -> 3
+    ```
+  
+    which is honestly hard to wrap your head around anyway. The key point is that the limit would have to be applied even to further branches so when 5 is called from 3 it has a limit of doing 3 sequences, even those from recursion. There may be problems where sequences need to be chosen. In the above code, the call tree would look like this, where the 'main branch' is in red circles:
+  
+    ![RecursionFix](RecursionFix.svg)
+  
+    This same solution could be applied to any polyphonic calls of sequences, so `4 = {4};{5},c` would actually probably have to be `4 = {4};{5.n},c` where `n` is the max allowed recursion depth. While I only diagrammed and explained branching into 2 paths, things like `4 = {4};{5.3};{6.9},c,e,f` or whatever should be possible, letting recursion get much more gross. Even in the above tree more than 2 sequences definitely start playing at times. I think it only get's up to 5(?) in that example though.
+  
 * Should a VCV module that just runs a client be made? This would let significantly more interesting data types be sequenced, like envelopes and such, and work around some of the issues where MIDI assuming gate and note changing are tied together.
+
+  * The MIDI Note/Gate problem may be solvable by either putting the gate notes on a different track (reserve tracks 9-16 for gate events, mirroring the notes) or by using an 'unusable' note to send gate messages, either note 0 (which is literally below 20hz) or note 127 (Which is 12.5khz, sorta awful). This would only realllly work monophonically though, so it's still not super clean. The easiest solution is to say fuck midi all together, maybe only target eurorack, VCV, or mayyyybeee MIDI 2.0/OSC
+
+    * just use a very low velocity, maybe 0? I don't know that vel=0 is the same as a note off, as long as it's not it *should* work? 
+
+      * MIDI 2.0 Spec 4.2.2 says:
+
+        > The allowable Velocity range for a MIDI 2.0 Note On message is 0x0000-0xFFFF. Unlike the MIDI
+        > 1.0 Note On message, a velocity value of zero does not function as a Note Off. When translating a
+        > MIDI 2.0 Note On message to the MIDI 1.0 Protocol, if the translated MIDI 1.0 value of the
+        > Velocity is zero, then the Translator shall replace the zero with a value of 1.
+
+        which seems to imply this could work.
+
+        Similarly, in 4.2.14 it's implied that pitch could be varied on the same note, sorta MPE like. This might make more sense, though the goal is to let the original notes release envelope be what's enveloping the subsequenet notes, so I'm not sure. I *think* the velocity of 0 is the right answer here, but without a MIDI 2.0 test bed it's hard to tell.
+
+        ![notesus](notesus.svg)
+
+  * Another shit solution would be to send midi 'gate' as a bunch of CCs, maybe taking CC0-5 for 6 voice polyphony. Still gross as hell.
+
+* Some special modes, like euclidean stuff, would be cool
+
+* Per sequence time divisions are probably a necessity. I'm not sure on the syntax?
+
+  * Maybe expand the @-1 octave syntax into @{-1,4/4} for down one octave in 4/4 for example?
+  * I'll have to brush up on how that musical notation actually works, but if it's literally multiply/divide this works well, something like 8/4 would double the speed? The fact that the number of notes can vary could be weird though, as we might not actually end on a bar marker?
+
+* Easy pattern locking to make a pattern repeat for the sake of editing it, maybe just putting a `!` before it? Or should there be something special in the IDE?
+
+* I'd like to have the option to disassociate midi notes from gates entirely, to define a gate sequence 'override', so that different gate sequences can be applied to different note sequences.
+
+  ![gateseq](gateseq.svg)
+
+  this would definitely incur a lot of edge cases though, like a 'late' gate on a longer note, gate sequences with a different time signature or rate, etc. This would probably be a pain to program for, but if done correctly could be incredibly expressive
+
+  Notes with accents would be really nice though. This could assume a velocity of like 75% normally (in config) and have an accent velocity of 100% (or whatever in config?). Because textually inputting velocity a lot would super suck I think only having 2 or 3 levels would be ideal: Weak, normal, and strong makes sense. Need to figure out Syntax.
+
+* Might be helpful to include some verrrrry basic S&H, LFO, etc. functionality. Maybe some global random sources, so if a rand is inserted and triggered in two places it can either be the same or unique
+
+  This would almost certainly be inspired from the Digitakt's LFO modes, which are great.
+
+* ~~CCs might need to have LSB,HSB for extra resolution, not sure how this would work out?~~
+
+  midi 2.0 would make this irreverent, and I just can't justify targeting a spec as under powered as 1.0 or something as unused as OSC.
+
